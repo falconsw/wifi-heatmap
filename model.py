@@ -18,7 +18,7 @@ import numpy as np
 from wifimap import last_values, load_plan, path, room_at, room_name, round_aps, rounds, save_json, text, lang_of, walls
 
 GRID = np.array(list(itertools.product(np.arange(-55, -19, 1.0), np.arange(1.5, 4.6, 0.1), np.arange(0, 12.5, 0.5))))
-STEP = 0.5          # candidate spacing, metres
+STEP = 0.5          # finest candidate spacing, metres
 
 
 def features(plan, pts, ap):
@@ -73,7 +73,9 @@ def main():
         raise SystemExit(text(L, 'nothing_free'))
     x0, y0 = min(r[0] for q in plan['rooms'] for r in q['rects']), min(r[1] for q in plan['rooms'] for r in q['rects'])
     x1, y1 = max(r[0] + r[2] for q in plan['rooms'] for r in q['rects']), max(r[1] + r[3] for q in plan['rooms'] for r in q['rects'])
-    cands = [(x, y) for x in np.arange(x0 + STEP / 2, x1, STEP) for y in np.arange(y0 + STEP / 2, y1, STEP) if room_at(plan, x, y)]
+    area = sum(r[2] * r[3] for q in plan['rooms'] for r in q['rects'])
+    step = max(STEP, math.sqrt(area / 400))          # at most ~400 candidate spots, so big plans stay quick
+    cands = [(x, y) for x in np.arange(x0 + step / 2, x1, step) for y in np.arange(y0 + step / 2, y1, step) if room_at(plan, x, y)]
     S = np.array([single(theta, features(plan, pts, c)) for c in cands])                      # candidates × points
     now = np.max([single(theta, fs[:, j]) for j in range(len(aps))], 0)
     fixed = [j for j, x in enumerate(aps) if x['id'] not in a.move]

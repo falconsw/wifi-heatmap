@@ -32,8 +32,8 @@ TEXTS = {
         'few_points': 'Model için en az 6 ölçülmüş nokta gerekir ("{round}" turunda {n} var)',
         'no_ap': 'Planda modem/erişim noktası yok: Plan sekmesinde ekleyin',
         'suggest': 'Öneri ({what}):',
-        'ap_move': '{name}: ({x:.1f}, {y:.1f}) m → ({nx:.1f}, {ny:.1f}) m, {room}',
-        'ap_add': 'Yeni erişim noktası: ({x:.1f}, {y:.1f}) m, {room}',
+        'ap_move': '{name}: ({x:.1f}; {y:.1f}) m → ({nx:.1f}; {ny:.1f}) m, {room}',
+        'ap_add': 'Yeni erişim noktası: ({x:.1f}; {y:.1f}) m, {room}',
         'before_after': 'En zayıf {k} noktanın ortalaması {a:.1f} → {b:.1f} dBm (tahmin), ev ortalaması {c:.1f} → {d:.1f} dBm (tahmin)',
         'unknown_ap': 'Planda "{id}" adlı erişim noktası yok. Olanlar: {ids}',
         'nothing_free': 'Taşınacak ya da eklenecek erişim noktası yok: --move ya da --add verin',
@@ -95,11 +95,37 @@ def save_json(file, obj):
     os.replace(tmp, file)
 
 
+RES = 0.05     # room lookup grid, metres
+_index = {}
+
+
+def room_index(plan):
+    """A 5 cm grid of room ids over the plan, so room_at stays fast for rooms filled from a map (hundreds of rectangles)."""
+    key = json.dumps(plan['rooms'], sort_keys=True)
+    if key not in _index:
+        x0, y0, x1, y1 = bounds(plan)
+        w, h = int((x1 - x0) / RES) + 2, int((y1 - y0) / RES) + 2
+        grid = [[None] * w for _ in range(h)]
+        for r in plan['rooms']:                    # where rooms overlap the later one wins (a room filled inside another)
+            for rx, ry, rw, rh in r['rects']:
+                for j in range(max(0, round((ry - y0) / RES)), min(h, round((ry + rh - y0) / RES) + 1)):
+                    row = grid[j]
+                    for i in range(max(0, round((rx - x0) / RES)), min(w, round((rx + rw - x0) / RES) + 1)): row[i] = r['id']
+        _index.clear(); _index[key] = (x0, y0, w, h, grid)
+    return _index[key]
+
+
 def room_at(plan, x, y):
-    for r in plan['rooms']:
-        for rx, ry, rw, rh in r['rects']:
-            if rx <= x <= rx + rw and ry <= y <= ry + rh: return r['id']
-    return None
+    if not plan['rooms']: return None
+    x0, y0, w, h, grid = room_index(plan)
+    i, j = round((x - x0) / RES), round((y - y0) / RES)
+    return grid[j][i] if 0 <= i < w and 0 <= j < h else None
+
+
+def label_at(room):
+    """Where a room's name goes: the centre top of its largest rectangle."""
+    x, y, w, h = max(room['rects'], key=lambda r: r[2] * r[3])
+    return x + w / 2, y + min(.3, h / 2)
 
 
 def room_name(plan, rid):
@@ -108,7 +134,7 @@ def room_name(plan, rid):
 
 def walls(plan, a, b):
     """Walls between a and b: how many times the straight line enters a different room."""
-    n = max(int(math.dist(a, b) / 0.05), 2)
+    n = max(int(math.dist(a, b) / 0.1), 2)
     count, prev = 0, room_at(plan, *a)
     for i in range(1, n + 1):
         t = i / n

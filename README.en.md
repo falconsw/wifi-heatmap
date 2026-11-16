@@ -55,13 +55,22 @@ Open the server's address in a browser and go to the **Plan** tab. The plan is i
 - **Measurement point:** tap where you will measure. Numbers are given in order; the shortcut asks for this number.
   2–3 points per room is a good start.
 - **Router/AP:** tap where the router and each access point stand. Their ids become `ap1`, `ap2`…; the model uses them.
-- Fix things with **Move / select** and **Delete**. Every change is saved to `data/plan.json`.
+- **Move / select** drags a room, point or router; **Delete** removes the room, point or border you tap.
+  Every change is saved to `data/plan.json`.
 
 Three ways to get the rooms in:
 
 1. **Draw them:** draw the rooms on the metre grid with their rough sizes. A few centimetres do not change the result.
-2. **Trace an image:** add a robot vacuum map, the floor plan from a listing or a photo of a sketch as the
-   **Background**, enter its width in metres and draw the rooms over it.
+2. **Take them from a robot vacuum map:** add a screenshot of the map in the vacuum's app as the **Background**.
+   - **Scale:** draw a line along a wall whose length you know and enter it in metres; the map and everything drawn
+     is scaled to match.
+   - **Fill by colour:** tap a room's colour and the area of that colour becomes the room. The vacuum's white path
+     lines, icons and no-go zones inside the room are included.
+   - **Border:** if two rooms of the same colour run into each other, draw a line between them; filling stops at it.
+   - If a spot at a room's edge is left out (e.g. a no-go zone on the edge), add it with **Add to room**.
+
+   A floor plan from a listing or a photo of a sketch goes in the same way; without colours, draw the rooms over it
+   with **Room**.
 3. **Describe them to an AI:** describe your home in an AI chat and let it write `plan.json`. Example prompt:
 
    > Turn my home into a plan.json in the format below. Units are metres, the top left corner is (0, 0), x to the right,

@@ -55,13 +55,22 @@ Tarayıcıda sunucunun adresini açıp **Plan** sekmesine geçin. Plan metre cin
 - **Ölçüm noktası:** ölçeceğiniz yerlere dokunun. Numaralar sırayla verilir, kestirme bu numarayı sorar. Her odaya
   2–3 nokta iyi bir başlangıçtır.
 - **Modem/AP:** modemin ve her erişim noktasının yerine dokunun. Kimlikleri `ap1`, `ap2`… olur; model bu adları kullanır.
-- **Taşı / seç** ve **Sil** ile düzeltin. Her değişiklik `data/plan.json` dosyasına kaydedilir.
+- **Taşı / seç** ile odayı, noktayı ya da modemi sürükleyin; **Sil** dokunduğunuz odayı, noktayı ya da sınırı siler.
+  Her değişiklik `data/plan.json` dosyasına kaydedilir.
 
 Odaları çizmenin üç yolu var:
 
 1. **Elle çizmek:** metre ızgarasında odaları yaklaşık ölçüleriyle çizin. Birkaç santimetre fark sonucu değiştirmez.
-2. **Bir görselin üstünden geçmek:** **Arka plan** ile robot süpürge haritası, emlak ilanındaki kat planı ya da kağıda
-   çizdiğiniz planın fotoğrafını ekleyin. Genişliğini metre olarak girin, odaları üstünden çizin.
+2. **Robot süpürge haritasından almak:** uygulamadaki haritanın ekran görüntüsünü **Arka plan** ile ekleyin.
+   - **Ölçek:** uzunluğunu bildiğiniz bir duvar boyunca çizgi çekip kaç metre olduğunu yazın; harita ve çizilenler
+     buna göre ölçeklenir.
+   - **Renkle doldur:** bir odanın rengine dokunun, o renkteki alan oda olur. Süpürgenin beyaz geçiş çizgileri, simgeler
+     ve odanın içinde kalan yasak bölgeler odaya dahil edilir.
+   - **Sınır:** aynı renkteki iki oda birbirine taşıyorsa aralarına çizgi çekin; doldurma o çizgide durur.
+   - Odanın kenarında kalıp alınmayan bir yer olursa (ör. kenardaki yasak bölge) **Odaya parça** ile ekleyin.
+
+   Emlak ilanındaki kat planı ya da kağıda çizilmiş bir planın fotoğrafı da aynı şekilde eklenir; renk yoksa odaları
+   üstünden **Oda** ile çizin.
 3. **Tarif edip yapay zekaya yazdırmak:** evinizi bir yapay zeka sohbetine anlatın, `plan.json` yazsın. Örnek istem:
 
    > Evimi aşağıdaki biçimde bir plan.json dosyasına çevir. Birim metre, sol üst köşe (0, 0), x sağa, y aşağı doğru.

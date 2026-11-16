@@ -19,8 +19,10 @@
   .hint code { color: var(--y); user-select: all; }
   svg { width: 100%; height: auto; display: block; background: #0c0d11; border-radius: 12px; touch-action: none; user-select: none; }
   .grid { stroke: #ffffff10; stroke-width: .02; } .grid.m { stroke: #ffffff22; }
-  .room rect { fill: #23262fcc; stroke: var(--ink); stroke-width: .06; }
-  .room.sel rect { fill: #3a3220; stroke: var(--y); }
+  /* a room is drawn twice: outlines, then fills over them, so only its outer edge shows (no line between its pieces) */
+  .room { opacity: .85; } .room .o { fill: none; stroke: var(--ink); stroke-width: .12; } .room .f { fill: #23262f; stroke: none; }
+  .room.sel .o { stroke: var(--y); } .room.sel .f { fill: #3a3220; }
+  .cut { stroke: #ff5a3c; stroke-width: .08; stroke-dasharray: .2 .12; } .draftline { stroke: var(--y); stroke-width: .08; }
   .rname { fill: var(--mute); font: 700 .32px system-ui; text-anchor: middle; pointer-events: none; }
   .pt circle { stroke: #fff; stroke-width: .04; fill: #3a3f55; } .pt text { fill: #fff; font: 800 .26px system-ui; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
   .ap rect { fill: #fff; stroke: #111318; stroke-width: .05; } .ap text { fill: var(--y); font: 800 .28px system-ui; text-anchor: middle; pointer-events: none; paint-order: stroke; stroke: #111318; stroke-width: .08; }
@@ -68,18 +70,26 @@ const T = {
     size: 'Plan boyutu', rename: 'Odayı yeniden adlandır', background: 'Arka plan', bgWidth: 'genişliği', remove: 'Kaldır',
     points: '{n}/{all} nokta ölçüldü', last: 'son: nokta {p} → {r} dBm', noPlan: 'Henüz plan yok: Plan sekmesinden çizin.', saved: 'Kaydedildi',
     roomName: 'Oda adı', apName: 'Modem / erişim noktası adı', roomDefault: 'Oda', apDefault: 'Modem', selectRoom: 'Önce bir oda seçin (Taşı aracıyla odaya dokunun).',
-    tools: { room: 'Oda', piece: 'Odaya parça', point: 'Ölçüm noktası', ap: 'Modem/AP', move: 'Taşı / seç', del: 'Sil' },
+    scaleLen: 'Bu çizgi kaç metre?', needBg: 'Önce Arka plan ile bir harita görseli ekleyin.', fillNone: 'Burada doldurulacak renkli bir alan bulunamadı.',
+    tools: { room: 'Oda', piece: 'Odaya parça', fill: 'Renkle doldur', cut: 'Sınır', scale: 'Ölçek', point: 'Ölçüm noktası', ap: 'Modem/AP', move: 'Taşı / seç', del: 'Sil' },
     hints: { room: 'Sürükleyerek dikdörtgen oda çizin. Metre ızgarası 25 cm adımla yapışır.', piece: 'Seçili odaya dikdörtgen ekleyin (L biçimli oda için). Aynı odanın parçaları arasında duvar sayılmaz.',
       point: 'Ölçeceğiniz yerlere dokunun; numaralar sırayla verilir. Kestirme bu numarayı sorar.', ap: 'Modemin ve her erişim noktasının (mesh, extender) yerine dokunun.',
-      move: 'Nokta, modem ya da odayı sürükleyin; odaya dokununca seçilir.', del: 'Silmek istediğinize dokunun.' } },
+      move: 'Nokta, modem ya da odayı sürükleyin; odaya dokununca seçilir.', del: 'Silmek istediğinize dokunun.',
+      fill: 'Arka plandaki haritada bir odanın rengine dokunun: o renkteki alan oda olur. Süpürgenin beyaz çizgileri odaya dahil sayılır.',
+      cut: 'Aynı renkteki iki oda birbirine taşıyorsa aralarına çizgi çekin; doldurma bu çizgide durur.',
+      scale: 'Uzunluğunu bildiğiniz bir duvar boyunca çizgi çekin ve kaç metre olduğunu yazın. Arka plan ve çizilenler buna göre ölçeklenir.' } },
   en: { title: 'Wi-Fi heat map', measure: 'Measure', plan: 'Plan', round: 'Round', newRound: 'New round', shortcutAddr: 'Address for the shortcut:',
     size: 'Plan size', rename: 'Rename room', background: 'Background', bgWidth: 'width', remove: 'Remove',
     points: '{n}/{all} points measured', last: 'last: point {p} → {r} dBm', noPlan: 'No plan yet: draw one in the Plan tab.', saved: 'Saved',
     roomName: 'Room name', apName: 'Router / access point name', roomDefault: 'Room', apDefault: 'Router', selectRoom: 'Select a room first (tap it with Move).',
-    tools: { room: 'Room', piece: 'Add to room', point: 'Measurement point', ap: 'Router/AP', move: 'Move / select', del: 'Delete' },
+    scaleLen: 'How many metres is this line?', needBg: 'Add a map image with Background first.', fillNone: 'No coloured area to fill here.',
+    tools: { room: 'Room', piece: 'Add to room', fill: 'Fill by colour', cut: 'Border', scale: 'Scale', point: 'Measurement point', ap: 'Router/AP', move: 'Move / select', del: 'Delete' },
     hints: { room: 'Drag to draw a rectangular room. It snaps to a metre grid in 25 cm steps.', piece: 'Add a rectangle to the selected room (for an L-shaped room). No wall is counted between pieces of one room.',
       point: 'Tap where you will measure; numbers are given in order. The shortcut asks for this number.', ap: 'Tap where the router and each access point (mesh, extender) stand.',
-      move: 'Drag a point, router or room; tapping a room selects it.', del: 'Tap what you want to delete.' } },
+      move: 'Drag a point, router or room; tapping a room selects it.', del: 'Tap what you want to delete.',
+      fill: "Tap a room's colour on the background map: the area of that colour becomes the room. The vacuum's white path lines count as part of it.",
+      cut: 'If two rooms of the same colour run into each other, draw a line between them; filling stops at it.',
+      scale: 'Draw a line along a wall whose length you know and enter it in metres. The background and everything drawn is scaled to match.' } },
 }
 const $ = (id) => document.getElementById(id)
 const NS = 'http://www.w3.org/2000/svg'
@@ -117,9 +127,11 @@ function draw(svg, editing) {
   if (editing) for (let y = 0; y <= h; y += .5) el('line', { class: 'grid' + (y % 1 ? '' : ' m'), x1: 0, y1: y, x2: w, y2: y }, svg)
   for (const r of plan.rooms) {
     const g = el('g', { class: 'room' + (sel === r.id ? ' sel' : ''), 'data-room': r.id }, svg)
-    r.rects.forEach(([x, y, rw, rh], i) => el('rect', { x, y, width: rw, height: rh, 'data-piece': i }, g))
+    for (const c of ['o', 'f']) r.rects.forEach(([x, y, rw, rh]) => el('rect', { class: c, x, y, width: rw, height: rh }, g))
   }
-  for (const r of plan.rooms) { const [x, y, rw, rh] = r.rects[0]; el('text', { class: 'rname', x: x + rw / 2, y: y + .45 }, svg).textContent = r.name }
+  for (const r of plan.rooms) { const [x, y, rw, rh] = r.rects.reduce((a, b) => a[2] * a[3] >= b[2] * b[3] ? a : b)
+    el('text', { class: 'rname', x: x + rw / 2, y: y + Math.min(.45, rh / 2) }, svg).textContent = r.name }
+  if (editing) (plan.cuts || []).forEach(([x1, y1, x2, y2], i) => el('line', { class: 'cut', x1, y1, x2, y2, 'data-cut': i }, svg))
   const last = {}
   if (!editing && S) for (const r of S.rows) last[r.point] = +r.rssi
   for (const p of plan.points) {
@@ -163,15 +175,23 @@ function save() {
 
 // plan editing: pointer in metres, snapped to 25 cm
 const snap = (v) => Math.round(v * 4) / 4
-function at(e) { const svg = $('pview'), p = svg.createSVGPoint(); p.x = e.clientX; p.y = e.clientY
-  const q = p.matrixTransform(svg.getScreenCTM().inverse()); return [Math.max(0, Math.min(plan.size[0], snap(q.x))), Math.max(0, Math.min(plan.size[1], snap(q.y)))] }
+function at(e, raw) { const svg = $('pview'), p = svg.createSVGPoint(); p.x = e.clientX; p.y = e.clientY
+  const q = p.matrixTransform(svg.getScreenCTM().inverse()), f = raw ? (v) => Math.round(v * 100) / 100 : snap
+  return [Math.max(0, Math.min(plan.size[0], f(q.x))), Math.max(0, Math.min(plan.size[1], f(q.y)))] }
 let drag = null
 $('pview').addEventListener('pointerdown', (e) => {
-  const [x, y] = at(e), t = e.target.closest('[data-point],[data-ap],[data-room]'), piece = e.target.dataset.piece
+  const [x, y] = at(e), t = e.target.closest('[data-point],[data-ap],[data-room],[data-cut]')
   $('pview').setPointerCapture(e.pointerId)
   if (tool === 'room' || tool === 'piece') {
     if (tool === 'piece' && !sel) { if (t?.dataset.room) { sel = t.dataset.room; render() } else alert(T[L].selectRoom); return }
     drag = { kind: 'draw', x0: x, y0: y, box: el('rect', { class: 'draft', x, y, width: 0, height: 0 }, $('pview')) }
+  } else if (tool === 'fill') {
+    if (!plan.background) return alert(T[L].needBg)
+    fillRoom(...at(e, true))
+  } else if (tool === 'scale' || tool === 'cut') {
+    if (!plan.background && tool === 'scale') return alert(T[L].needBg)
+    const [lx, ly] = at(e, true)
+    drag = { kind: 'line', x0: lx, y0: ly, line: el('line', { class: 'draftline', x1: lx, y1: ly, x2: lx, y2: ly }, $('pview')) }
   } else if (tool === 'point') {
     plan.points.push({ n: Math.max(0, ...plan.points.map((p) => p.n)) + 1, x, y }); save(); render()
   } else if (tool === 'ap') {
@@ -181,11 +201,12 @@ $('pview').addEventListener('pointerdown', (e) => {
   } else if (tool === 'del' && t) {
     if (t.dataset.point) plan.points = plan.points.filter((p) => p.n !== +t.dataset.point)
     if (t.dataset.ap) plan.aps = plan.aps.filter((a) => a.id !== t.dataset.ap)
-    if (t.dataset.room) { const r = plan.rooms.find((r) => r.id === t.dataset.room); r.rects.splice(+piece, 1); if (!r.rects.length) plan.rooms = plan.rooms.filter((q) => q !== r) }
+    if (t.dataset.room) plan.rooms = plan.rooms.filter((q) => q.id !== t.dataset.room)
+    if (t.dataset.cut) plan.cuts.splice(+t.dataset.cut, 1)
     save(); render()
   } else if (tool === 'move' && t) {
-    if (t.dataset.room) { sel = t.dataset.room; const r = plan.rooms.find((r) => r.id === sel); drag = { kind: 'rect', rect: r.rects[+piece], x0: x, y0: y, r0: [...r.rects[+piece]] }; render() }
-    else drag = { kind: 'obj', obj: t.dataset.point ? plan.points.find((p) => p.n === +t.dataset.point) : plan.aps.find((a) => a.id === t.dataset.ap) }
+    if (t.dataset.room) { sel = t.dataset.room; const r = plan.rooms.find((r) => r.id === sel); drag = { kind: 'room', room: r, x0: x, y0: y, r0: r.rects.map((q) => [...q]) }; render() }
+    else if (!t.dataset.cut) drag = { kind: 'obj', obj: t.dataset.point ? plan.points.find((p) => p.n === +t.dataset.point) : plan.aps.find((a) => a.id === t.dataset.ap) }
   }
 })
 $('pview').addEventListener('pointermove', (e) => {
@@ -193,11 +214,18 @@ $('pview').addEventListener('pointermove', (e) => {
   const [x, y] = at(e)
   if (drag.kind === 'draw') { const b = drag.box; b.setAttribute('x', Math.min(x, drag.x0)); b.setAttribute('y', Math.min(y, drag.y0)); b.setAttribute('width', Math.abs(x - drag.x0)); b.setAttribute('height', Math.abs(y - drag.y0)) }
   if (drag.kind === 'obj') { drag.obj.x = x; drag.obj.y = y; draw($('pview'), true) }
-  if (drag.kind === 'rect') { drag.rect[0] = drag.r0[0] + x - drag.x0; drag.rect[1] = drag.r0[1] + y - drag.y0; draw($('pview'), true) }
+  if (drag.kind === 'room') { drag.room.rects = drag.r0.map(([a, b, w, h]) => [a + x - drag.x0, b + y - drag.y0, w, h]); draw($('pview'), true) }
+  if (drag.kind === 'line') { const [lx, ly] = at(e, true); drag.line.setAttribute('x2', lx); drag.line.setAttribute('y2', ly) }
 })
 $('pview').addEventListener('pointerup', (e) => {
   if (!drag) return
   const d = drag; drag = null
+  if (d.kind === 'line') {
+    const [lx, ly] = at(e, true), len = Math.hypot(lx - d.x0, ly - d.y0)
+    if (len < .2) return render()
+    if (tool === 'cut') (plan.cuts ||= []).push([d.x0, d.y0, lx, ly])
+    else { const m = parseFloat((prompt(T[L].scaleLen, '') || '').replace(',', '.')); if (!(m > 0)) return render(); rescale(m / len) }
+  }
   if (d.kind === 'draw') {
     const [x, y] = at(e), r = [Math.min(x, d.x0), Math.min(y, d.y0), Math.abs(x - d.x0), Math.abs(y - d.y0)]
     if (r[2] < .5 || r[3] < .5) return render()
@@ -208,6 +236,94 @@ $('pview').addEventListener('pointerup', (e) => {
   }
   save(); render()
 })
+// scale: everything traced on the background grows or shrinks with it, around its top left corner
+const r2 = (v) => Math.round(v * 100) / 100
+function rescale(f) {
+  const b = plan.background, ox = b.x || 0, oy = b.y || 0, X = (v) => r2(ox + (v - ox) * f), Y = (v) => r2(oy + (v - oy) * f)
+  for (const r of plan.rooms) r.rects = r.rects.map(([x, y, w, h]) => [X(x), Y(y), r2(w * f), r2(h * f)])
+  for (const p of [...plan.points, ...plan.aps]) { p.x = X(p.x); p.y = Y(p.y) }
+  plan.cuts = (plan.cuts || []).map(([x1, y1, x2, y2]) => [X(x1), Y(y1), X(x2), Y(y2)])
+  b.w = r2(b.w * f); b.h = r2(b.h * f)
+  plan.size = [Math.ceil(ox + b.w), Math.ceil(oy + b.h)]
+  $('bgw').value = b.w
+}
+
+// fill by colour: flood fill on the background image from the tapped pixel, then the area as 20 cm cells merged into rectangles
+let bgc = null
+async function bgPixels() {
+  const b = plan.background
+  if (bgc && bgc.v === b.v) return bgc
+  const img = new Image(); img.src = '/background?' + (b.v || 0); await img.decode()
+  const c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight
+  const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(img, 0, 0)
+  return bgc = { v: b.v, w: c.width, h: c.height, d: g.getImageData(0, 0, c.width, c.height).data }
+}
+async function fillRoom(x, y) {
+  const b = plan.background, B = await bgPixels(), d = B.d, W = B.w, H = B.h, k = W / b.w, bx = b.x || 0, by = b.y || 0
+  const ix = (v) => (v - bx) * k, iy = (v) => (v - by) * k
+  const wall = new Uint8Array(W * H)
+  for (const [x1, y1, x2, y2] of plan.cuts || []) {
+    const n = Math.ceil(Math.hypot(ix(x2) - ix(x1), iy(y2) - iy(y1))) + 1
+    for (let s = 0; s <= n; s++) {
+      const px = Math.round(ix(x1) + (ix(x2) - ix(x1)) * s / n), py = Math.round(iy(y1) + (iy(y2) - iy(y1)) * s / n)
+      for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) { const qx = px + dx, qy = py + dy; if (qx >= 0 && qy >= 0 && qx < W && qy < H) wall[qy * W + qx] = 1 }
+    }
+  }
+  const white = (i) => d[i] > 205 && d[i + 1] > 205 && d[i + 2] > 205
+  const sat = (i) => Math.max(d[i], d[i + 1], d[i + 2]) - Math.min(d[i], d[i + 1], d[i + 2])
+  // the seed: the tapped colour, or the nearest coloured pixel when the tap lands on a path line or a label
+  let seed = -1
+  const sx = Math.round(ix(x)), sy = Math.round(iy(y))
+  for (let r = 0; r < 14 && seed < 0; r++) for (let dy = -r; dy <= r && seed < 0; dy++) for (let dx = -r; dx <= r; dx++) {
+    const qx = sx + dx, qy = sy + dy
+    if (qx < 0 || qy < 0 || qx >= W || qy >= H || wall[qy * W + qx]) continue
+    if (!white((qy * W + qx) * 4) && sat((qy * W + qx) * 4) > 25) { seed = qy * W + qx; break }
+  }
+  if (seed < 0) return alert(T[L].fillNone)
+  // like the seed: its colour or a lighter tint of it (the vacuum's path lines are the room colour blended toward white)
+  const sr = d[seed * 4], sg = d[seed * 4 + 1], sb = d[seed * 4 + 2], ur = 255 - sr, ug = 255 - sg, ub = 255 - sb, uu = ur * ur + ug * ug + ub * ub || 1
+  const like = (i) => { const vr = d[i] - sr, vg = d[i + 1] - sg, vb = d[i + 2] - sb, t = Math.max(0, Math.min(1, (vr * ur + vg * ug + vb * ub) / uu))
+    return (vr - t * ur) ** 2 + (vg - t * ug) ** 2 + (vb - t * ub) ** 2 < 45 * 45 }
+  const mask = new Uint8Array(W * H), stack = [seed]
+  mask[seed] = 1
+  while (stack.length) {
+    const p = stack.pop(), px = p % W
+    for (const q of [px > 0 ? p - 1 : -1, px < W - 1 ? p + 1 : -1, p - W, p + W])
+      if (q >= 0 && q < W * H && !mask[q] && !wall[q] && like(q * 4)) { mask[q] = 1; stack.push(q) }
+  }
+  const cell = .2, cs = cell * k, CW = Math.ceil(W / cs), CH = Math.ceil(H / cs), cnt = new Float32Array(CW * CH)
+  for (let p = 0; p < W * H; p++) if (mask[p]) { const px = p % W; cnt[Math.floor((p - px) / W / cs) * CW + Math.floor(px / cs)]++ }
+  let cells = cnt.map((c) => c >= cs * cs * .35 ? 1 : 0)
+  const morph = (g, grow) => g.map((_, c) => { const i = c % CW, j = (c - i) / CW
+    for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { const a = i + di, e = j + dj, on = a >= 0 && e >= 0 && a < CW && e < CH && g[e * CW + a]
+      if (grow && on) return 1; if (!grow && !on) return 0 }
+    return grow ? 0 : 1 })
+  cells = morph(morph(cells, true), false)          // close small holes: icons, labels, furniture marks
+  // fill holes the room surrounds (no-go zones, furniture): every empty cell not reachable from the image edge
+  const out = new Uint8Array(CW * CH), q = []
+  for (let c = 0; c < CW * CH; c++) { const i = c % CW, j = (c - i) / CW; if ((i === 0 || j === 0 || i === CW - 1 || j === CH - 1) && !cells[c]) { out[c] = 1; q.push(c) } }
+  while (q.length) { const c = q.pop(), i = c % CW
+    for (const e of [i > 0 ? c - 1 : -1, i < CW - 1 ? c + 1 : -1, c - CW, c + CW]) if (e >= 0 && e < CW * CH && !out[e] && !cells[e]) { out[e] = 1; q.push(e) } }
+  cells = cells.map((v, c) => v || !out[c] ? 1 : 0)
+  const rects = []; let open = {}
+  for (let j = 0; j < CH; j++) {
+    const now = {}
+    for (let i = 0; i < CW;) {
+      if (!cells[j * CW + i]) { i++; continue }
+      let e = i; while (e < CW && cells[j * CW + e]) e++
+      const key = i + ',' + e
+      if (open[key] !== undefined) { rects[open[key]][3]++; now[key] = open[key] } else { rects.push([i, j, e - i, 1]); now[key] = rects.length - 1 }
+      i = e
+    }
+    open = now
+  }
+  if (rects.reduce((s, r) => s + r[2] * r[3], 0) < 4) return alert(T[L].fillNone)
+  const name = prompt(T[L].roomName, `${T[L].roomDefault} ${plan.rooms.length + 1}`); if (!name) return
+  let n = plan.rooms.length + 1; while (plan.rooms.some((q) => q.id === 'r' + n)) n++
+  plan.rooms.push({ id: 'r' + n, name, rects: rects.map(([i, j, w, h]) => [r2(bx + i * cell), r2(by + j * cell), r2(w * cell), r2(h * cell)]) })
+  sel = 'r' + n; save(); render()
+}
+
 $('rename').onclick = () => { const r = plan?.rooms.find((q) => q.id === sel); if (!r) return alert(T[L].selectRoom)
   const name = prompt(T[L].roomName, r.name); if (name) { r.name = name; save(); render() } }
 $('pw').onchange = $('ph').onchange = () => { plan.size = [+$('pw').value || 12, +$('ph').value || 10]; save(); render() }
@@ -216,6 +332,7 @@ $('bgfile').onchange = async () => {
   const file = await (await fetch('/api/background', { method: 'POST', body: f })).text()
   const img = new Image(); img.src = URL.createObjectURL(f); await img.decode()
   const w = plan.size[0]; plan.background = { file, x: 0, y: 0, w, h: w * img.naturalHeight / img.naturalWidth, opacity: .5, ratio: img.naturalHeight / img.naturalWidth, v: Date.now() }
+  plan.size = [Math.max(plan.size[0], Math.ceil(w)), Math.max(plan.size[1], Math.ceil(plan.background.h))]
   save(); render()
 }
 $('bgw').onchange = () => { const b = plan.background; if (!b) return; b.w = +$('bgw').value; b.h = b.w * b.ratio; save(); render() }

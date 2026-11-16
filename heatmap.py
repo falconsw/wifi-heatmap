@@ -12,7 +12,7 @@ Between the measured points the signal is estimated by inverse distance weightin
 import argparse, json, os
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
-from wifimap import HI, LO, bounds, lang_of, last_values, load_plan, path, room_at, round_aps, rounds, text
+from wifimap import HI, LO, bounds, label_at, lang_of, last_values, load_plan, path, room_at, round_aps, rounds, text
 
 PX = 80             # pixels per metre
 M = 0.6             # margin around the plan, metres
@@ -86,11 +86,14 @@ def draw_map(plan, values, aps, title, diff=False):
     im.paste(Image.fromarray(img), (0, TOP))
     g = ImageDraw.Draw(im)
     o = lambda x, y: (c.px(x, y)[0], c.px(x, y)[1] + TOP)
+    # walls: where the room under a pixel changes (no line between the pieces of one room)
+    room = c.room
+    edge = np.zeros_like(room, bool)
+    edge[1:, :] |= room[1:, :] != room[:-1, :]; edge[:, 1:] |= room[:, 1:] != room[:, :-1]
+    for _ in range(2): edge = edge | np.roll(edge, 1, 0) | np.roll(edge, 1, 1)
+    im.paste(Image.new('RGB', (c.w, c.h), WHITE), (0, TOP), Image.fromarray((edge * 255).astype(np.uint8)))
     for r in plan['rooms']:
-        for x, y, w, h in r['rects']: g.rectangle([*o(x, y), *o(x + w, y + h)], outline=WHITE, width=4)
-    for r in plan['rooms']:
-        x, y, w, h = r['rects'][0]
-        g.text(o(x + w / 2, y + .3), r['name'], fill=WHITE, font=font(20), anchor='mm', stroke_width=3, stroke_fill=INK)
+        g.text(o(*label_at(r)), r['name'], fill=WHITE, font=font(20), anchor='mm', stroke_width=3, stroke_fill=INK)
     for a in aps:
         x, y = o(a['x'], a['y'])
         if a.get('from'):
