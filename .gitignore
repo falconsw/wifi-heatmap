@@ -1,0 +1,7 @@
+data/
+example/out/
+example/suggestion.json
+example/model.json
+__pycache__/
+*.tmp
+.DS_Store

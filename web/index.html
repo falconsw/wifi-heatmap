@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Wi-Fi</title>
+<style>
+  :root { --bg: #111318; --panel: #1a1c22; --line: #34363f; --ink: #f5f2ea; --mute: #a7a397; --y: #ffc23a; --room: #23262f; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px -apple-system, system-ui, sans-serif; }
+  header { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--bg); z-index: 5; }
+  header h1 { font-size: 17px; margin: 0 auto 0 0; }
+  button, select, input { font: 600 14px system-ui; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 9px; padding: 8px 11px; }
+  button.on { background: var(--y); color: #111318; border-color: var(--y); }
+  input[type=number] { width: 70px; }
+  main { padding: 12px; max-width: 1100px; margin: 0 auto; }
+  .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 10px; }
+  .hint { color: var(--mute); font-size: 13px; margin: 6px 0 10px; }
+  .hint code { color: var(--y); user-select: all; }
+  svg { width: 100%; height: auto; display: block; background: #0c0d11; border-radius: 12px; touch-action: none; user-select: none; }
+  .grid { stroke: #ffffff10; stroke-width: .02; } .grid.m { stroke: #ffffff22; }
+  .room rect { fill: #23262fcc; stroke: var(--ink); stroke-width: .06; }
+  .room.sel rect { fill: #3a3220; stroke: var(--y); }
+  .rname { fill: var(--mute); font: 700 .32px system-ui; text-anchor: middle; pointer-events: none; }
+  .pt circle { stroke: #fff; stroke-width: .04; fill: #3a3f55; } .pt text { fill: #fff; font: 800 .26px system-ui; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+  .ap rect { fill: #fff; stroke: #111318; stroke-width: .05; } .ap text { fill: var(--y); font: 800 .28px system-ui; text-anchor: middle; pointer-events: none; paint-order: stroke; stroke: #111318; stroke-width: .08; }
+  .draft { fill: #ffc23a33; stroke: var(--y); stroke-width: .05; stroke-dasharray: .15 .1; }
+  #status { color: var(--mute); font-size: 14px; margin-top: 8px; min-height: 20px; }
+  .tab { display: none; } .tab.on { display: block; }
+</style>
+</head>
+<body>
+<header>
+  <h1 data-t="title"></h1>
+  <button data-tab="measure"></button><button data-tab="plan"></button>
+  <select id="lang"><option value="tr">TR</option><option value="en">EN</option></select>
+</header>
+<main>
+  <section class="tab" id="tab-measure">
+    <div class="row">
+      <span data-t="round"></span> <select id="round"></select>
+      <input id="newround" size="10"><button id="addround" data-t="newRound"></button>
+    </div>
+    <svg id="mview"></svg>
+    <div id="status"></div>
+    <p class="hint"><span data-t="shortcutAddr"></span> <code id="addr"></code></p>
+  </section>
+
+  <section class="tab" id="tab-plan">
+    <div class="row" id="tools"></div>
+    <div class="row">
+      <span data-t="size"></span> <input id="pw" type="number" min="2" max="60" step="0.5"> × <input id="ph" type="number" min="2" max="60" step="0.5"> m
+      <button id="rename" data-t="rename"></button>
+    </div>
+    <div class="row">
+      <span data-t="background"></span> <input id="bgfile" type="file" accept="image/png,image/jpeg" style="max-width:190px">
+      <span data-t="bgWidth"></span> <input id="bgw" type="number" min="1" max="60" step="0.1"> m
+      <input id="bgo" type="range" min="0.1" max="1" step="0.05" style="width:90px"><button id="bgdel" data-t="remove"></button>
+    </div>
+    <svg id="pview"></svg>
+    <p class="hint" id="toolhint"></p>
+    <div id="saved" class="hint"></div>
+  </section>
+</main>
+<script>
+const T = {
+  tr: { title: 'Wi-Fi ısı haritası', measure: 'Ölçüm', plan: 'Plan', round: 'Tur', newRound: 'Yeni tur', shortcutAddr: 'Kestirmeye yazılacak adres:',
+    size: 'Plan boyutu', rename: 'Odayı yeniden adlandır', background: 'Arka plan', bgWidth: 'genişliği', remove: 'Kaldır',
+    points: '{n}/{all} nokta ölçüldü', last: 'son: nokta {p} → {r} dBm', noPlan: 'Henüz plan yok: Plan sekmesinden çizin.', saved: 'Kaydedildi',
+    roomName: 'Oda adı', apName: 'Modem / erişim noktası adı', roomDefault: 'Oda', apDefault: 'Modem', selectRoom: 'Önce bir oda seçin (Taşı aracıyla odaya dokunun).',
+    tools: { room: 'Oda', piece: 'Odaya parça', point: 'Ölçüm noktası', ap: 'Modem/AP', move: 'Taşı / seç', del: 'Sil' },
+    hints: { room: 'Sürükleyerek dikdörtgen oda çizin. Metre ızgarası 25 cm adımla yapışır.', piece: 'Seçili odaya dikdörtgen ekleyin (L biçimli oda için). Aynı odanın parçaları arasında duvar sayılmaz.',
+      point: 'Ölçeceğiniz yerlere dokunun; numaralar sırayla verilir. Kestirme bu numarayı sorar.', ap: 'Modemin ve her erişim noktasının (mesh, extender) yerine dokunun.',
+      move: 'Nokta, modem ya da odayı sürükleyin; odaya dokununca seçilir.', del: 'Silmek istediğinize dokunun.' } },
+  en: { title: 'Wi-Fi heat map', measure: 'Measure', plan: 'Plan', round: 'Round', newRound: 'New round', shortcutAddr: 'Address for the shortcut:',
+    size: 'Plan size', rename: 'Rename room', background: 'Background', bgWidth: 'width', remove: 'Remove',
+    points: '{n}/{all} points measured', last: 'last: point {p} → {r} dBm', noPlan: 'No plan yet: draw one in the Plan tab.', saved: 'Saved',
+    roomName: 'Room name', apName: 'Router / access point name', roomDefault: 'Room', apDefault: 'Router', selectRoom: 'Select a room first (tap it with Move).',
+    tools: { room: 'Room', piece: 'Add to room', point: 'Measurement point', ap: 'Router/AP', move: 'Move / select', del: 'Delete' },
+    hints: { room: 'Drag to draw a rectangular room. It snaps to a metre grid in 25 cm steps.', piece: 'Add a rectangle to the selected room (for an L-shaped room). No wall is counted between pieces of one room.',
+      point: 'Tap where you will measure; numbers are given in order. The shortcut asks for this number.', ap: 'Tap where the router and each access point (mesh, extender) stand.',
+      move: 'Drag a point, router or room; tapping a room selects it.', del: 'Tap what you want to delete.' } },
+}
+const $ = (id) => document.getElementById(id)
+const NS = 'http://www.w3.org/2000/svg'
+const fmt = (s, o) => s.replace(/\{(\w+)\}/g, (_, k) => o[k])
+let L = 'tr', S = null, plan = null, tab = 'measure', tool = 'room', sel = null, saveTimer = null
+
+function lang(l) {
+  L = T[l] ? l : 'tr'; document.documentElement.lang = L; $('lang').value = L
+  try { localStorage.setItem('lang', L) } catch (e) {}
+  document.querySelectorAll('[data-t]').forEach((e) => { e.textContent = T[L][e.dataset.t] })
+  document.querySelectorAll('[data-tab]').forEach((e) => { e.textContent = T[L][e.dataset.tab] })
+  $('tools').innerHTML = Object.entries(T[L].tools).map(([k, v]) => `<button data-tool="${k}" class="${k === tool ? 'on' : ''}">${v}</button>`).join('')
+  $('tools').querySelectorAll('button').forEach((b) => b.onclick = () => setTool(b.dataset.tool))
+  $('toolhint').textContent = T[L].hints[tool]
+  render()
+}
+function setTool(t) { tool = t; lang(L) }
+function show(t) { tab = t; document.querySelectorAll('.tab').forEach((e) => e.classList.toggle('on', e.id === 'tab-' + t))
+  document.querySelectorAll('[data-tab]').forEach((b) => b.classList.toggle('on', b.dataset.tab === t)); render() }
+
+// colour scale shared with heatmap.py: -85 dBm red … -35 dBm green
+const STOPS = [[214, 48, 49], [240, 140, 40], [246, 214, 70], [80, 200, 120], [40, 170, 110]]
+function colour(v) { const k = Math.max(0, Math.min(1, (v + 85) / 50)) * (STOPS.length - 1), i = Math.min(Math.floor(k), STOPS.length - 2), f = k - i
+  return `rgb(${STOPS[i].map((c, j) => Math.round(c * (1 - f) + STOPS[i + 1][j] * f)).join(',')})` }
+
+function el(tag, attrs, parent) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent && parent.appendChild(e); return e }
+function draw(svg, editing) {
+  svg.innerHTML = ''
+  if (!plan) return
+  const [w, h] = plan.size
+  svg.setAttribute('viewBox', `-0.4 -0.4 ${w + 0.8} ${h + 0.8}`)
+  const bg = plan.background
+  if (bg) el('image', { href: '/background?' + (bg.v || 0), x: bg.x || 0, y: bg.y || 0, width: bg.w, height: bg.h || bg.w, opacity: bg.opacity ?? .5, preserveAspectRatio: 'none' }, svg)
+  if (editing) for (let x = 0; x <= w; x += .5) el('line', { class: 'grid' + (x % 1 ? '' : ' m'), x1: x, y1: 0, x2: x, y2: h }, svg)
+  if (editing) for (let y = 0; y <= h; y += .5) el('line', { class: 'grid' + (y % 1 ? '' : ' m'), x1: 0, y1: y, x2: w, y2: y }, svg)
+  for (const r of plan.rooms) {
+    const g = el('g', { class: 'room' + (sel === r.id ? ' sel' : ''), 'data-room': r.id }, svg)
+    r.rects.forEach(([x, y, rw, rh], i) => el('rect', { x, y, width: rw, height: rh, 'data-piece': i }, g))
+  }
+  for (const r of plan.rooms) { const [x, y, rw, rh] = r.rects[0]; el('text', { class: 'rname', x: x + rw / 2, y: y + .45 }, svg).textContent = r.name }
+  const last = {}
+  if (!editing && S) for (const r of S.rows) last[r.point] = +r.rssi
+  for (const p of plan.points) {
+    const g = el('g', { class: 'pt', 'data-point': p.n }, svg)
+    const c = el('circle', { cx: p.x, cy: p.y, r: .24 }, g)
+    if (last[p.n] !== undefined) c.style.fill = colour(last[p.n])
+    el('text', { x: p.x, y: p.y }, g).textContent = p.n
+  }
+  for (const a of plan.aps) {
+    const g = el('g', { class: 'ap', 'data-ap': a.id }, svg)
+    el('rect', { x: a.x - .2, y: a.y - .2, width: .4, height: .4, rx: .08 }, g)
+    el('text', { x: a.x, y: a.y + .55 }, g).textContent = a.name
+  }
+}
+function render() {
+  if (tab === 'measure') {
+    draw($('mview'), false)
+    if (!plan) { $('status').textContent = T[L].noPlan; return }
+    const done = new Set(S.rows.map((r) => r.point)), l = S.rows.at(-1)
+    $('status').textContent = fmt(T[L].points, { n: done.size, all: plan.points.length }) + (l ? ' · ' + fmt(T[L].last, { p: l.point, r: Math.round(+l.rssi) }) : '')
+  } else {
+    if (!plan) plan = { size: [12, 10], rooms: [], points: [], aps: [], background: null }
+    draw($('pview'), true)
+    $('pw').value = plan.size[0]; $('ph').value = plan.size[1]
+    $('bgw').value = plan.background?.w ?? ''; $('bgo').value = plan.background?.opacity ?? .5
+  }
+}
+
+async function load() {
+  S = await (await fetch('/api/state')).json()
+  if (tab === 'measure' || !plan) plan = S.plan
+  $('addr').textContent = S.url || location.origin
+  $('round').innerHTML = S.rounds.map((r) => `<option ${r === S.round ? 'selected' : ''}>${r}</option>`).join('')
+  render()
+}
+function save() {
+  clearTimeout(saveTimer)
+  saveTimer = setTimeout(async () => { await fetch('/api/plan', { method: 'POST', body: JSON.stringify(plan) }); $('saved').textContent = T[L].saved
+    setTimeout(() => $('saved').textContent = '', 1200) }, 300)
+}
+
+// plan editing: pointer in metres, snapped to 25 cm
+const snap = (v) => Math.round(v * 4) / 4
+function at(e) { const svg = $('pview'), p = svg.createSVGPoint(); p.x = e.clientX; p.y = e.clientY
+  const q = p.matrixTransform(svg.getScreenCTM().inverse()); return [Math.max(0, Math.min(plan.size[0], snap(q.x))), Math.max(0, Math.min(plan.size[1], snap(q.y)))] }
+let drag = null
+$('pview').addEventListener('pointerdown', (e) => {
+  const [x, y] = at(e), t = e.target.closest('[data-point],[data-ap],[data-room]'), piece = e.target.dataset.piece
+  $('pview').setPointerCapture(e.pointerId)
+  if (tool === 'room' || tool === 'piece') {
+    if (tool === 'piece' && !sel) { if (t?.dataset.room) { sel = t.dataset.room; render() } else alert(T[L].selectRoom); return }
+    drag = { kind: 'draw', x0: x, y0: y, box: el('rect', { class: 'draft', x, y, width: 0, height: 0 }, $('pview')) }
+  } else if (tool === 'point') {
+    plan.points.push({ n: Math.max(0, ...plan.points.map((p) => p.n)) + 1, x, y }); save(); render()
+  } else if (tool === 'ap') {
+    const name = prompt(T[L].apName, plan.aps.length ? `AP ${plan.aps.length + 1}` : T[L].apDefault); if (!name) return
+    let i = plan.aps.length + 1; while (plan.aps.some((a) => a.id === 'ap' + i)) i++
+    plan.aps.push({ id: 'ap' + i, name, x, y }); save(); render()
+  } else if (tool === 'del' && t) {
+    if (t.dataset.point) plan.points = plan.points.filter((p) => p.n !== +t.dataset.point)
+    if (t.dataset.ap) plan.aps = plan.aps.filter((a) => a.id !== t.dataset.ap)
+    if (t.dataset.room) { const r = plan.rooms.find((r) => r.id === t.dataset.room); r.rects.splice(+piece, 1); if (!r.rects.length) plan.rooms = plan.rooms.filter((q) => q !== r) }
+    save(); render()
+  } else if (tool === 'move' && t) {
+    if (t.dataset.room) { sel = t.dataset.room; const r = plan.rooms.find((r) => r.id === sel); drag = { kind: 'rect', rect: r.rects[+piece], x0: x, y0: y, r0: [...r.rects[+piece]] }; render() }
+    else drag = { kind: 'obj', obj: t.dataset.point ? plan.points.find((p) => p.n === +t.dataset.point) : plan.aps.find((a) => a.id === t.dataset.ap) }
+  }
+})
+$('pview').addEventListener('pointermove', (e) => {
+  if (!drag) return
+  const [x, y] = at(e)
+  if (drag.kind === 'draw') { const b = drag.box; b.setAttribute('x', Math.min(x, drag.x0)); b.setAttribute('y', Math.min(y, drag.y0)); b.setAttribute('width', Math.abs(x - drag.x0)); b.setAttribute('height', Math.abs(y - drag.y0)) }
+  if (drag.kind === 'obj') { drag.obj.x = x; drag.obj.y = y; draw($('pview'), true) }
+  if (drag.kind === 'rect') { drag.rect[0] = drag.r0[0] + x - drag.x0; drag.rect[1] = drag.r0[1] + y - drag.y0; draw($('pview'), true) }
+})
+$('pview').addEventListener('pointerup', (e) => {
+  if (!drag) return
+  const d = drag; drag = null
+  if (d.kind === 'draw') {
+    const [x, y] = at(e), r = [Math.min(x, d.x0), Math.min(y, d.y0), Math.abs(x - d.x0), Math.abs(y - d.y0)]
+    if (r[2] < .5 || r[3] < .5) return render()
+    if (tool === 'piece') plan.rooms.find((q) => q.id === sel)?.rects.push(r)
+    else { const name = prompt(T[L].roomName, `${T[L].roomDefault} ${plan.rooms.length + 1}`); if (!name) return render()
+      let i = plan.rooms.length + 1; while (plan.rooms.some((q) => q.id === 'r' + i)) i++
+      plan.rooms.push({ id: 'r' + i, name, rects: [r] }); sel = 'r' + i }
+  }
+  save(); render()
+})
+$('rename').onclick = () => { const r = plan?.rooms.find((q) => q.id === sel); if (!r) return alert(T[L].selectRoom)
+  const name = prompt(T[L].roomName, r.name); if (name) { r.name = name; save(); render() } }
+$('pw').onchange = $('ph').onchange = () => { plan.size = [+$('pw').value || 12, +$('ph').value || 10]; save(); render() }
+$('bgfile').onchange = async () => {
+  const f = $('bgfile').files[0]; if (!f) return
+  const file = await (await fetch('/api/background', { method: 'POST', body: f })).text()
+  const img = new Image(); img.src = URL.createObjectURL(f); await img.decode()
+  const w = plan.size[0]; plan.background = { file, x: 0, y: 0, w, h: w * img.naturalHeight / img.naturalWidth, opacity: .5, ratio: img.naturalHeight / img.naturalWidth, v: Date.now() }
+  save(); render()
+}
+$('bgw').onchange = () => { const b = plan.background; if (!b) return; b.w = +$('bgw').value; b.h = b.w * b.ratio; save(); render() }
+$('bgo').oninput = () => { if (!plan.background) return; plan.background.opacity = +$('bgo').value; save(); render() }
+$('bgdel').onclick = () => { plan.background = null; save(); render() }
+
+$('round').onchange = async () => { await fetch('/api/round', { method: 'POST', body: $('round').value }); load() }
+$('addround').onclick = async () => { const n = $('newround').value.trim(); if (!n) return; await fetch('/api/round', { method: 'POST', body: n }); $('newround').value = ''; load() }
+$('lang').onchange = () => lang($('lang').value)
+document.querySelectorAll('[data-tab]').forEach((b) => b.onclick = () => { show(b.dataset.tab); if (b.dataset.tab === 'measure') load() })
+
+;(async () => {
+  await load()
+  let saved = null; try { saved = localStorage.getItem('lang') } catch (e) {}
+  lang(saved || S.lang)
+  show(S.plan ? 'measure' : 'plan')
+  setInterval(() => { if (tab === 'measure') load() }, 2000)
+})()
+</script>
+</body>
+</html>
