@@ -12,6 +12,8 @@ and compare before and after.
 
 The flat and the values in the images are the **synthetic example** in `example/`, not a real measurement.
 
+The tool used in a real home (54 measurements, suggestion, moving the devices, measuring again): [11-minute video on YouTube](https://www.youtube.com/watch?v=U-PeDmG_k_4) (in Turkish).
+
 ## How it works
 
 1. The iPhone shortcut reads the Wi-Fi signal (RSSI) 3 times at each point and sends it to a server on a computer at home.

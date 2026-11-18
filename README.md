@@ -12,6 +12,8 @@ sonrayı karşılaştırırsınız.
 
 Görsellerdeki ev ve değerler `example/` klasöründeki **sentetik örnektir**, gerçek ölçüm değildir.
 
+Aracın gerçek bir evde kullanımı (54 ölçüm, öneri, taşıma ve yeniden ölçüm): [YouTube'da 11 dakikalık video](https://www.youtube.com/watch?v=U-PeDmG_k_4).
+
 ## Nasıl çalışır
 
 1. iPhone'daki kestirme her noktada Wi-Fi sinyalini (RSSI) 3 kez okur ve evdeki bilgisayarda çalışan sunucuya gönderir.
